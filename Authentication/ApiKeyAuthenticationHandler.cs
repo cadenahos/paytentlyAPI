@@ -7,52 +7,46 @@ using Microsoft.Extensions.Options;
 using PaytentlyGateway.Services;
 using System.Security.Claims;
 
-namespace PaytentlyGateway.Authentication
+namespace PaytentlyTestGateway.Authentication
 {
     public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
-        private const string ApiKeyHeaderName = "X-API-Key";
-        private readonly IApiKeyAuthenticationService _authenticationService;
+        private readonly IApiKeyAuthenticationService _apiKeyService;
 
         public ApiKeyAuthenticationHandler(
             IOptionsMonitor<AuthenticationSchemeOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
             ISystemClock clock,
-            IApiKeyAuthenticationService authenticationService)
+            IApiKeyAuthenticationService apiKeyService)
             : base(options, logger, encoder, clock)
         {
-            _authenticationService = authenticationService;
+            _apiKeyService = apiKeyService;
         }
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            if (!Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKeyHeaderValues))
+            if (!Request.Headers.TryGetValue("X-API-Key", out var apiKeyHeaderValues))
             {
-                return AuthenticateResult.Fail("API Key was not provided");
+                return AuthenticateResult.Fail("API Key header is missing");
             }
 
-            var providedApiKey = apiKeyHeaderValues.FirstOrDefault();
-
-            if (string.IsNullOrEmpty(providedApiKey))
+            var apiKey = apiKeyHeaderValues.FirstOrDefault();
+            if (string.IsNullOrEmpty(apiKey))
             {
-                return AuthenticateResult.Fail("API Key was not provided");
+                return AuthenticateResult.Fail("API Key is empty");
             }
 
-            var isValid = await _authenticationService.ValidateApiKey(providedApiKey);
-
-            if (!isValid)
+            var apiKeyInfo = await _apiKeyService.ValidateApiKey(apiKey);
+            if (apiKeyInfo == null)
             {
                 return AuthenticateResult.Fail("Invalid API Key");
             }
 
-            var apiKeyDetails = await _authenticationService.GetApiKeyDetails(providedApiKey);
-
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, apiKeyDetails.MerchantId),
-                new Claim(ClaimTypes.Name, apiKeyDetails.MerchantName),
-                new Claim(ClaimTypes.Role, "Merchant")
+                new Claim(ClaimTypes.Name, apiKeyInfo.MerchantName),
+                new Claim("MerchantId", apiKeyInfo.MerchantId)
             };
 
             var identity = new ClaimsIdentity(claims, Scheme.Name);

@@ -1,9 +1,9 @@
 using System;
 using System.Threading.Tasks;
 using MassTransit;
-using PaytentlyGateway.Models.Events;
+using PaytentlyTestGateway.Models;
 
-namespace PaytentlyGateway.Consumers
+namespace PaytentlyTestGateway.Consumers
 {
     public class PaymentCreatedConsumer : IConsumer<PaymentCreatedEvent>
     {
@@ -16,18 +16,21 @@ namespace PaytentlyGateway.Consumers
 
         public async Task Consume(ConsumeContext<PaymentCreatedEvent> context)
         {
-            // Simulate payment processing with the acquirer
-            await Task.Delay(1000); // Simulate processing time
+            var @event = context.Message;
 
-            var paymentProcessedEvent = new PaymentProcessedEvent
+            // Simulate payment processing
+            await Task.Delay(1000);
+
+            // Publish payment processed event
+            var processedEvent = new PaymentProcessedEvent
             {
-                PaymentId = context.Message.PaymentId,
-                Status = "Completed", // In a real implementation, this would come from the acquirer
+                PaymentId = @event.PaymentId,
+                Status = "Processed",
                 ProcessedAt = DateTime.UtcNow,
-                TransactionId = Guid.NewGuid().ToString()
+                MerchantId = @event.MerchantId
             };
 
-            await _publishEndpoint.Publish(paymentProcessedEvent);
+            await _publishEndpoint.Publish(processedEvent);
         }
     }
 } 

@@ -1,142 +1,142 @@
-# Paytently Payment Gateway
+# Paytently Test Gateway
 
-A secure, event-driven payment gateway API built with .NET 6, RabbitMQ, and Docker.
+A payment gateway API built with .NET Core and RabbitMQ for asynchronous payment processing.
 
 ## Features
 
-- Event-driven payment processing
-- API key authentication
-- Merchant authorization
-- Docker containerization
-- RabbitMQ message broker
+- RESTful API for payment processing
+- Asynchronous payment processing using RabbitMQ
+- API Key authentication
+- Card number masking for security
 - Swagger documentation
-- Secure card data handling
+- Docker support
 
 ## Prerequisites
 
+- .NET 6.0 SDK
 - Docker and Docker Compose
-- .NET 6 SDK (for local development)
-- Git
+- RabbitMQ (included in Docker Compose)
 
-## Quick Start
+## Getting Started
 
-1. Clone the repository:
+### Local Development
 
-```bash
-git clone <repository-url>
-cd paytently-test-gateway
-```
+1. Clone the repository
+2. Navigate to the project directory
+3. Run the application:
+   ```bash
+   dotnet run
+   ```
 
-2. Start the application using Docker Compose:
+### Docker Setup
 
-```bash
-docker-compose up --build
-```
+1. Clone the repository
+2. Navigate to the project directory
+3. Build and run the containers:
+   ```bash
+   docker-compose up --build
+   ```
 
 The application will be available at:
 
-- API: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger
-- RabbitMQ Management UI: http://localhost:15672 (username: guest, password: guest)
+- API: http://localhost:5000
+- Swagger UI: http://localhost:5000/swagger
+- RabbitMQ Management: http://localhost:15672 (guest/guest)
 
-## Authentication
+## API Documentation
 
-The API uses API key authentication with merchant authorization. All requests must include a valid API key in the `X-API-Key` header.
+### Authentication
 
-### Available API Keys
+All API endpoints require authentication using an API key. Include the API key in the request header:
 
-| API Key        | Merchant ID | Merchant Name   | Role     |
-| -------------- | ----------- | --------------- | -------- |
-| test-api-key-1 | merchant-1  | Test Merchant 1 | Merchant |
-| test-api-key-2 | merchant-2  | Test Merchant 2 | Merchant |
+```
+X-API-Key: test-api-key
+```
 
-### Authentication Flow
+### Endpoints
 
-1. Include the API key in the `X-API-Key` header
-2. The API validates the key and assigns merchant role
-3. Access is granted only to authenticated merchants
-
-### Example Authentication Header
+#### Create Payment
 
 ```http
-X-API-Key: test-api-key-1
+POST /api/payments
 ```
 
-## Configuration
+Request:
 
-### Environment Variables
-
-The application can be configured using environment variables in the `docker-compose.yml` file:
-
-```yaml
-environment:
-  - ASPNETCORE_ENVIRONMENT=Development
-  - RabbitMQ__Host=rabbitmq
-  - RabbitMQ__Username=guest
-  - RabbitMQ__Password=guest
-```
-
-## Testing the API
-
-### Using Swagger UI
-
-1. Open http://localhost:8080/swagger
-2. Click the "Authorize" button
-3. Enter your API key in the format: `X-API-Key: test-api-key-1`
-4. Try out the API endpoints
-
-### Using cURL
-
-#### Create a Payment
-
-```bash
-curl -X POST "http://localhost:8080/api/payment" \
--H "Content-Type: application/json" \
--H "X-API-Key: test-api-key-1" \
--d '{
-  "amount": 100.00,
+```json
+{
+  "amount": 100.0,
   "currency": "USD",
   "cardNumber": "4111111111111111",
   "expiryMonth": 12,
   "expiryYear": 2025,
   "cvv": "123"
-}'
+}
 ```
 
-#### Get Payment Status
-
-```bash
-curl -X GET "http://localhost:8080/api/payment/{payment-id}" \
--H "X-API-Key: test-api-key-1"
-```
-
-### Expected Responses
-
-#### Create Payment Response
+Response:
 
 ```json
 {
-  "paymentId": "00000000-0000-0000-0000-000000000000",
+  "paymentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "amount": 100.0,
+  "currency": "USD",
+  "maskedCardNumber": "************1111",
   "status": "Pending",
-  "createdAt": "2024-05-04T12:00:00Z",
+  "createdAt": "2024-03-20T10:00:00Z",
+  "processedAt": null,
   "merchantId": "merchant-1",
   "merchantName": "Test Merchant 1"
 }
 ```
 
-#### Get Payment Response
+#### Get Payment
+
+```http
+GET /api/payments/{paymentId}
+```
+
+Response:
 
 ```json
 {
-  "paymentId": "00000000-0000-0000-0000-000000000000",
+  "paymentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "amount": 100.0,
   "currency": "USD",
   "maskedCardNumber": "************1111",
   "status": "Completed",
-  "createdAt": "2024-05-04T12:00:00Z",
-  "processedAt": "2024-05-04T12:01:00Z",
+  "createdAt": "2024-03-20T10:00:00Z",
+  "processedAt": "2024-03-20T10:00:05Z",
   "merchantId": "merchant-1",
   "merchantName": "Test Merchant 1"
+}
+```
+
+### Error Responses
+
+#### Authentication Error
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7235#section-3.1",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "API Key is missing or invalid"
+}
+```
+
+#### Validation Error
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Invalid payment request",
+  "errors": {
+    "amount": ["Amount must be greater than 0"],
+    "cardNumber": ["Invalid card number"]
+  }
 }
 ```
 
@@ -144,77 +144,83 @@ curl -X GET "http://localhost:8080/api/payment/{payment-id}" \
 
 The application follows an event-driven architecture:
 
-1. Merchant sends payment request with API key
-2. API validates authentication and authorization
-3. PaymentCreatedEvent is published to RabbitMQ
-4. Payment processor consumes event and processes payment
-5. PaymentProcessedEvent is published with result
-6. Merchant can query payment status
+1. Payment requests are received by the API
+2. The payment service validates the request and creates a payment record
+3. A `PaymentCreatedEvent` is published to RabbitMQ
+4. The payment consumer processes the payment asynchronously
+5. A `PaymentProcessedEvent` is published with the result
+6. The payment status is updated in the system
 
-## Development
+### Components
 
-### Local Development
+- **API Layer**: Handles HTTP requests and responses
+- **Payment Service**: Business logic for payment processing
+- **Event Publisher**: Publishes payment events to RabbitMQ
+- **Payment Consumer**: Processes payment events asynchronously
+- **Authentication Service**: Validates API keys and manages merchant information
 
-1. Install .NET 6 SDK
-2. Install RabbitMQ locally or use Docker
-3. Update `appsettings.json` with local RabbitMQ settings
-4. Run the application:
+## Testing
+
+### Payment Scenarios
+
+1. **Successful Payment**
+
+   - Valid card details
+   - Sufficient funds
+   - Payment processed successfully
+
+2. **Invalid Card**
+
+   - Invalid card number
+   - Expired card
+   - Invalid CVV
+
+3. **Insufficient Funds**
+
+   - Valid card
+   - Insufficient balance
+   - Payment declined
+
+4. **Network Issues**
+   - Connection timeout
+   - Service unavailable
+   - Retry mechanism
+
+### Running Tests
 
 ```bash
-dotnet run
-```
-
-### Building and Testing
-
-```bash
-# Build the application
-dotnet build
-
-# Run tests
 dotnet test
 ```
-
-## Security
-
-- API key authentication required for all endpoints
-- Merchant role authorization
-- Card numbers are masked in responses
-- Sensitive data is not stored in plain text
-- HTTPS enforced in production
-
-### Authentication Errors
-
-The API returns the following authentication-related errors:
-
-| Status Code | Error Message            | Description                |
-| ----------- | ------------------------ | -------------------------- |
-| 401         | API Key was not provided | Missing X-API-Key header   |
-| 401         | Invalid API Key          | Invalid or expired API key |
-| 403         | Forbidden                | Merchant role required     |
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Issues**
+1. **RabbitMQ Connection Issues**
 
-   - Ensure API key is correctly formatted
-   - Check if API key is valid
-   - Verify merchant role is assigned
+   - Ensure RabbitMQ service is running
+   - Check connection string in configuration
+   - Verify network connectivity between services
 
-2. **RabbitMQ Connection Issues**
+2. **Authentication Failures**
 
-   - Check if RabbitMQ container is running
-   - Verify connection settings in environment variables
+   - Verify API key is correct
+   - Check request headers
+   - Ensure merchant is properly registered
 
-3. **Docker Issues**
-   - Ensure Docker daemon is running
-   - Check available ports are not in use
+3. **Payment Processing Delays**
+   - Check RabbitMQ queue status
+   - Monitor consumer health
+   - Verify event publishing
 
-## Support
+### Logs
 
-For support, please contact the development team or create an issue in the repository.
+Check the application logs for detailed error information:
+
+```bash
+docker-compose logs payment-gateway
+```
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.

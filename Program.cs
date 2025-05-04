@@ -1,12 +1,15 @@
 using MassTransit;
-using PaytentlyGateway.Authentication;
-using PaytentlyGateway.Services;
+using PaytentlyTestGateway.Consumers;
+using PaytentlyTestGateway.Services;
+using PaytentlyTestGateway.Authentication;
 using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // Add authentication services
 builder.Services.AddScoped<IApiKeyAuthenticationService, ApiKeyAuthenticationService>();
@@ -16,26 +19,25 @@ builder.Services.AddAuthentication("ApiKey")
 // Register services
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ICardProtectionService, CardProtectionService>();
-builder.Services.AddScoped<IPaymentEventPublisher, RabbitMqPaymentEventPublisher>();
+builder.Services.AddScoped<IPaymentEventPublisher, RabbitMQPaymentEventPublisher>();
 
 // Configure MassTransit with RabbitMQ
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<PaytentlyGateway.Consumers.PaymentCreatedConsumer>();
+    x.AddConsumer<PaymentCreatedConsumer>();
     
     x.UsingRabbitMq((context, cfg) =>
     {
-        var rabbitMQHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
-        var rabbitMQUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
-        var rabbitMQPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
-
-        cfg.Host(rabbitMQHost, "/", h =>
+        cfg.Host("rabbitmq", "/", h =>
         {
-            h.Username(rabbitMQUsername);
-            h.Password(rabbitMQPassword);
+            h.Username("guest");
+            h.Password("guest");
         });
 
-        cfg.ConfigureEndpoints(context);
+        cfg.ReceiveEndpoint("payment-created", e =>
+        {
+            e.ConfigureConsumer<PaymentCreatedConsumer>(context);
+        });
     });
 });
 
