@@ -5,16 +5,16 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["PaytentlyTestGateway.csproj", "./"]
+COPY ["PaytentlyAPI/PaytentlyTestGateway.csproj", "./"]
 RUN dotnet restore "PaytentlyTestGateway.csproj"
 COPY . .
 WORKDIR "/src"
-RUN dotnet build "PaytentlyTestGateway.csproj" -c Release -o /app/build
+RUN dotnet build "PaytentlyAPI/PaytentlyTestGateway.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "PaytentlyTestGateway.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "PaytentlyAPI/PaytentlyTestGateway.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "PaytentlyTestGateway.dll"] 
+ENTRYPOINT ["dotnet", "PaytentlyAPI/PaytentlyTestGateway.dll"] 
