@@ -58,8 +58,8 @@ terraform.rc
 
 # Docker
 ## Ignore Docker build artifacts
-**/Dockerfile
-**/.dockerignore
+# **/Dockerfile
+# **/.dockerignore
 docker-compose.override.yml
 
 # Ignore Docker volumes
