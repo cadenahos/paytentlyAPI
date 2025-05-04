@@ -46,7 +46,9 @@ namespace PaytentlyTestGateway.Authentication
             var claims = new[]
             {
                 new Claim(ClaimTypes.Name, apiKeyInfo.MerchantName),
-                new Claim("MerchantId", apiKeyInfo.MerchantId)
+                new Claim(ClaimTypes.NameIdentifier, apiKeyInfo.MerchantId),
+                new Claim("MerchantId", apiKeyInfo.MerchantId),
+                new Claim(ClaimTypes.Role, "Merchant")
             };
 
             var identity = new ClaimsIdentity(claims, Scheme.Name);

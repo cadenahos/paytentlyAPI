@@ -3,6 +3,7 @@ using PaytentlyTestGateway.Consumers;
 using PaytentlyTestGateway.Services;
 using PaytentlyTestGateway.Authentication;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IApiKeyAuthenticationService, ApiKeyAuthenticationService>();
 builder.Services.AddAuthentication("ApiKey")
     .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>("ApiKey", null);
+
+// Add authorization
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .RequireRole("Merchant")
+        .Build();
+});
 
 // Register services
 builder.Services.AddScoped<IPaymentService, PaymentService>();
