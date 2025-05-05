@@ -11,10 +11,16 @@ COPY . .
 WORKDIR "/src"
 RUN dotnet build "PaytentlyAPI/PaytentlyTestGateway.csproj" -c Release -o /app/build
 
+# Test stage
+FROM build AS test
+WORKDIR /src
+COPY ["PaytentlyAPI.Tests/", "./PaytentlyAPI.Tests/"]
+RUN dotnet test "PaytentlyAPI.Tests/PaytentlyAPI.Tests.csproj" -c Release
+
 FROM build AS publish
 RUN dotnet publish "PaytentlyAPI/PaytentlyTestGateway.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "PaytentlyAPI/PaytentlyTestGateway.dll"] 
+ENTRYPOINT ["dotnet", "PaytentlyTestGateway.dll"] 
